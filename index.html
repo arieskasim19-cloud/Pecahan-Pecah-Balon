@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pecah Balon Pecahan - Game Matematika SD</title>
+    <!-- Menggunakan Google Fonts Fredoka untuk tampilan ceria ramah anak -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js untuk efek suara sintetis tanpa aset eksternal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    
+    <style>
+        /* Pengaturan dasar dan font */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: linear-gradient(180deg, #38bdf8 0%, #bae6fd 65%, #86efac 65%, #4ade80 100%);
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Animasi Awan Bergerak */
+        @keyframes floatCloud {
+            0% { transform: translateX(-150px); }
+            100% { transform: translateX(calc(100vw + 150px)); }
+        }
+
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 50px;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .cloud::before, .cloud::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 50%;
+        }
+        .cloud-1 { width: 120px; height: 40px; top: 12%; animation: floatCloud 28s linear infinite; }
+        .cloud-1::before { width: 50px; height: 50px; top: -25px; left: 15px; }
+        .cloud-1::after { width: 70px; height: 70px; top: -35px; right: 15px; }
+
+        .cloud-2 { width: 90px; height: 30px; top: 25%; animation: floatCloud 22s linear infinite; animation-delay: -10s; opacity: 0.7; }
+        .cloud-2::before { width: 40px; height: 40px; top: -20px; left: 10px; }
+        .cloud-2::after { width: 50px; height: 50px; top: -25px; right: 10px; }
+
+        /* Styling Pecahan Matematika (Pembilang / Penyebut) */
+        .fraction {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            vertical-align: middle;
+            margin: 0 4px;
+            line-height: 1;
+        }
+        .fraction .top {
+            border-bottom: 3px solid currentColor;
+            padding: 0 4px 2px 4px;
+        }
+        .fraction .bottom {
+            padding: 2px 4px 0 4px;
+        }
+
+        /* Pecahan versi lebih kecil untuk di dalam balon */
+        .balloon-fraction .top {
+            border-bottom: 2.5px solid #ffffff;
+            padding: 0 3px 1px 3px;
+        }
+        .balloon-fraction .bottom {
+            padding: 1px 3px 0 3px;
+        }
+
+        /* Tombol 3D Ceria */
+        .btn-3d {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+        }
+
+        /* Animasi Getar saat salah */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Animasi Pop/Muncul */
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            80% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in {
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Kanvas Game */
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Dekorasi Latar Belakang: Awan & Matahari -->
+    <div class="cloud cloud-1"></div>
+    <div class="cloud cloud-2"></div>
+    <div class="fixed top-6 right-8 w-16 h-16 bg-yellow-300 rounded-full shadow-[0_0_40px_#fde047] z-0 pointer-events-none hidden sm:block"></div>
+
+    <!-- ==========================================
+         LAYAR 1: MENU UTAMA (START SCREEN)
+         ========================================== -->
+    <div id="startScreen" class="fixed inset-0 z-30 flex flex-col items-center justify-center p-4 bg-sky-900/30 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-6 sm:p-10 max-w-md w-full text-center shadow-2xl border-4 border-amber-400 pop-in">
+            <!-- Ikon Balon Hiasan -->
+            <div class="flex justify-center gap-2 mb-3 text-4xl sm:text-5xl">
+                <span class="animate-bounce" style="animation-delay: 0s;">🎈</span>
+                <span class="animate-bounce" style="animation-delay: 0.15s;">🧮</span>
+                <span class="animate-bounce" style="animation-delay: 0.3s;">🎈</span>
+            </div>
+            
+            <h1 class="text-3xl sm:text-4xl font-bold text-sky-600 mb-2 tracking-wide">
+                Pecah Balon <span class="text-rose-500">Pecahan!</span>
+            </h1>
+            <p class="text-slate-600 text-sm sm:text-base mb-6 font-medium">
+                Ayo pecahkan balon dengan jawaban yang benar sebelum jatuh atau waktu habis!
+            </p>
+
+            <!-- Kotak Aturan Main Singkat -->
+            <div class="bg-amber-50 rounded-2xl p-4 mb-6 text-left border-2 border-amber-200 space-y-2 text-sm text-slate-700">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🎯</span>
+                    <span>Selesaikan <b>7 soal hitungan</b> & <b>3 soal cerita</b> pecahan.</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">⏱️</span>
+                    <span>Waktu <b>20 detik</b> (hitungan) & <b>40 detik</b> (soal cerita).</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">👆</span>
+                    <span><b>Klik / Sentuh</b> balon berisi jawaban paling sederhana!</span>
+                </div>
+            </div>
+
+            <button id="startBtn" class="btn-3d w-full py-4 bg-gradient-to-r from-emerald-400 to-green-500 hover:from-emerald-500 hover:to-green-600 text-white font-bold text-xl sm:text-2xl rounded-2xl border-b-4 border-green-700 cursor-pointer">
+                MULAI BERMAIN 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         LAYAR 2: AREA PERMAINAN (HUD & CANVAS)
+         ========================================== -->
+    <div id="gameUI" class="hidden relative w-full h-full flex flex-col justify-between pointer-events-none z-20">
+        
+        <!-- Kontainer Utama Split Kiri (Soal & Status) - Kanan (Area Balon) -->
+        <div class="flex-1 w-full flex flex-col md:flex-row items-stretch p-3 sm:p-5 gap-3 sm:gap-5 overflow-hidden">
+            
+            <!-- PANEL KIRI: Status (Soal, Timer, Skor) & Papan Soal -->
+            <div class="w-full md:w-[38%] lg:w-[34%] flex flex-col gap-3 z-20 pointer-events-auto">
+                
+                <!-- Kartu Status: Nomor Soal, Timer, Skor & Suara -->
+                <div class="bg-white/95 backdrop-blur-md p-3.5 sm:p-4 rounded-3xl shadow-lg border-2 border-sky-200 flex flex-col gap-3">
+                    <!-- Baris Atas: Nomor Soal, Skor, Tombol Suara -->
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="bg-sky-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-sm sm:text-base shadow-sm">
+                            Soal <span id="questionNum">1</span>/10
+                        </span>
+
+                        <div class="flex items-center gap-2">
+                            <div class="bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl flex items-center gap-1">
+                                <span class="text-base sm:text-lg">⭐</span>
+                                <span id="scoreDisplay" class="font-bold text-amber-700 text-sm sm:text-base">0</span>
+                            </div>
+                            <button id="soundToggle" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-lg transition cursor-pointer" title="Suara">
+                                🔊
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Baris Bawah: Timer Dinamis (20s / 40s) -->
+                    <div class="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-2xl border border-slate-200">
+                        <span class="text-lg sm:text-xl">⏱️</span>
+                        <div class="w-full h-4 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
+                            <div id="timerBar" class="h-full bg-emerald-500 transition-all duration-100 ease-linear" style="width: 100%;"></div>
+                        </div>
+                        <span id="timerText" class="font-bold text-slate-700 w-8 text-right text-sm sm:text-base">20</span>
+                    </div>
+                </div>
+
+                <!-- Papan Soal Utama (Posisi Kiri) -->
+                <div class="bg-white border-4 border-amber-400 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-col items-center justify-center md:flex-1">
+                    <span id="questionLabel" class="text-xs sm:text-sm font-bold text-amber-600 uppercase tracking-wider mb-2 text-center">Berapakah hasilnya?</span>
+                    <div id="questionBoard" class="text-3xl sm:text-5xl font-bold text-slate-800 flex items-center justify-center gap-2 text-center">
+                        <!-- Soal akan dirender via JS -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- AREA KANAN: Zona Balon Jatuh (Kanvas di belakang area ini) -->
+            <div id="balloonZone" class="flex-1 relative min-h-[240px]"></div>
+
+        </div>
+
+        <!-- Feedback Toast (Benar / Salah / Waktu Habis) -->
+        <div id="feedbackBanner" class="hidden fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
+            <div id="feedbackContent" class="px-8 py-4 rounded-3xl font-bold text-2xl sm:text-4xl text-white shadow-2xl border-4 border-white text-center">
+                HEBAT! +100
+            </div>
+        </div>
+
+        <!-- Dekorasi Rumput di Bawah -->
+        <div class="w-full h-12 bg-gradient-to-t from-green-600 to-green-500 border-t-4 border-green-400 flex items-end justify-around px-4 overflow-hidden">
+            <span class="text-2xl mb-1">🌼</span>
+            <span class="text-xl mb-1">🌱</span>
+            <span class="text-2xl mb-1">🌷</span>
+            <span class="text-xl mb-1">🍀</span>
+            <span class="text-2xl mb-1">🌻</span>
+        </div>
+    </div>
+
+    <!-- Kanvas Interaktif Tempat Balon Jatuh -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- ==========================================
+         LAYAR 3: HASIL AKHIR (GAME OVER SCREEN)
+         ========================================== -->
+    <div id="endScreen" class="hidden fixed inset-0 z-30 flex flex-col items-center justify-center p-4 bg-sky-900/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl border-4 border-amber-400 pop-in">
+            <div id="endEmoji" class="text-6xl mb-2">🏆</div>
+            <h2 id="endTitle" class="text-3xl font-bold text-sky-600 mb-1">Luar Biasa!</h2>
+            <p id="endSubtitle" class="text-slate-600 mb-5 text-sm sm:text-base">Kamu telah menyelesaikan semua soal!</p>
+
+            <!-- Kartu Statistik -->
+            <div class="bg-sky-50 rounded-2xl p-4 mb-6 border-2 border-sky-200 grid grid-cols-2 gap-4">
+                <div class="bg-white p-3 rounded-xl shadow-sm">
+                    <div class="text-xs text-slate-500 font-bold uppercase">Skor Akhir</div>
+                    <div id="finalScore" class="text-3xl font-bold text-amber-500">0</div>
+                </div>
+                <div class="bg-white p-3 rounded-xl shadow-sm">
+                    <div class="text-xs text-slate-500 font-bold uppercase">Jawaban Benar</div>
+                    <div id="finalCorrect" class="text-3xl font-bold text-emerald-500">0 / 10</div>
+                </div>
+            </div>
+
+            <button id="restartBtn" class="btn-3d w-full py-4 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white font-bold text-xl rounded-2xl border-b-4 border-blue-700 cursor-pointer">
+                MAIN LAGI 🔄
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ============================================================================
+         * INISIALISASI VARIABEL & KONFIGURASI GAME
+         * ============================================================================
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Elemen UI
+        const startScreen = document.getElementById('startScreen');
+        const gameUI = document.getElementById('gameUI');
+        const endScreen = document.getElementById('endScreen');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const soundToggle = document.getElementById('soundToggle');
+
+        const questionNumEl = document.getElementById('questionNum');
+        const questionLabelEl = document.getElementById('questionLabel');
+        const questionBoardEl = document.getElementById('questionBoard');
+        const scoreDisplayEl = document.getElementById('scoreDisplay');
+        const timerBarEl = document.getElementById('timerBar');
+        const timerTextEl = document.getElementById('timerText');
+        const feedbackBanner = document.getElementById('feedbackBanner');
+        const feedbackContent = document.getElementById('feedbackContent');
+
+        // State Permainan
+        const TOTAL_QUESTIONS = 10;
+        const REGULAR_TIME = 20; // 20 detik untuk soal hitungan (nomor 1-7)
+        const STORY_TIME = 40;   // 40 detik untuk soal cerita (nomor 8-10)
+
+        let gameState = 'START'; // 'START', 'PLAYING', 'TRANSITION', 'END'
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let correctCount = 0;
+        let currentMaxTime = REGULAR_TIME;
+        let timeLeft = REGULAR_TIME;
+        let questions = [];
+        let balloons = [];
+        let particles = [];
+        let lastTimestamp = 0;
+        let soundEnabled = true;
+        let synth = null;
+
+        // Warna-warna cerah untuk balon
+        const BALLOON_COLORS = [
+            { main: '#f43f5e', light: '#fda4af', dark: '#be123c' }, // Merah Mawar
+            { main: '#3b82f6', light: '#93c5fd', dark: '#1d4ed8' }, // Biru Cerah
+            { main: '#10b981', light: '#6ee7b7', dark: '#047857' }, // Hijau Zamrud
+            { main: '#f59e0b', light: '#fcd34d', dark: '#b45309' }, // Oranye Amber
+            { main: '#8b5cf6', light: '#c4b5fd', dark: '#6d28d9' }, // Ungu Ceria
+            { main: '#ec4899', light: '#f9a8d4', dark: '#be185d' }  // Pink
+        ];
+
+        /**
+         * ============================================================================
+         * SISTEM EFEK SUARA (TONE.JS)
+         * ============================================================================
+         */
+        function initAudio() {
+            if (!synth && typeof Tone !== 'undefined') {
+                synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -6;
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled || !synth) return;
+            try {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                const now = Tone.now();
+                if (type === 'pop') {
+                    synth.triggerAttackRelease('C6', '32n', now);
+                } else if (type === 'correct') {
+                    synth.triggerAttackRelease(['C5', 'E5', 'G5', 'C6'], '16n', now);
+                } else if (type === 'wrong') {
+                    synth.triggerAttackRelease(['E3', 'Eb3'], '8n', now);
+                } else if (type === 'win') {
+                    synth.triggerAttackRelease(['C5', 'E5', 'G5', 'B5', 'C6'], '8n', now);
+                }
+            } catch (e) {
+                console.warn('Audio error:', e);
+            }
+        }
+
+        /**
+         * ============================================================================
+         * LOGIKA MATEMATIKA PECAHAN & GENERATOR SOAL
+         * ============================================================================
+         */
+        // Mencari Faktor Persekutuan Terbesar (FPB) untuk menyederhanakan pecahan
+        function gcd(a, b) {
+            a = Math.abs(a);
+            b = Math.abs(b);
+            while (b) {
+                let t = b;
+                b = a % b;
+                a = t;
+            }
+            return a;
+        }
+
+        // Menyederhanakan pecahan { num, den }
+        function simplifyFraction(num, den) {
+            if (den === 0) return { num: 0, den: 1 };
+            const divisor = gcd(num, den);
+            return {
+                num: num / divisor,
+                den: den / divisor
+            };
+        }
+
+        // Format pecahan menjadi string unik untuk pengecekan duplikat
+        function fracKey(f) {
+            return f.den === 1 ? `${f.num}` : `${f.num}/${f.den}`;
+        }
+
+        // Helper membuat HTML pecahan inline di dalam teks soal cerita
+        function inlineFracHTML(num, den) {
+            return `<span class="fraction text-sky-600 font-bold mx-1 text-base sm:text-xl"><span class="top">${num}</span><span class="bottom">${den}</span></span>`;
+        }
+
+        // Helper membuat 3 opsi pengecoh (distractor)
+        function generateDistractors(correctAns, num, den, wholeNum, denominators) {
+            const options = [correctAns];
+            const optionKeys = new Set([fracKey(correctAns)]);
+
+            let safetyCounter = 0;
+            while (options.length < 4 && safetyCounter < 50) {
+                safetyCounter++;
+                let fakeNum, fakeDen;
+                const strategy = Math.floor(Math.random() * 4);
+
+                if (strategy === 0) {
+                    fakeNum = num;
+                    fakeDen = den * wholeNum;
+                } else if (strategy === 1) {
+                    fakeNum = num * wholeNum;
+                    fakeDen = den;
+                } else if (strategy === 2) {
+                    fakeNum = Math.max(1, correctAns.num + (Math.random() > 0.5 ? 1 : -1));
+                    fakeDen = correctAns.den;
+                } else {
+                    fakeNum = correctAns.den;
+                    fakeDen = Math.max(1, correctAns.num);
+                }
+
+                const simplifiedFake = simplifyFraction(fakeNum, fakeDen);
+                const key = fracKey(simplifiedFake);
+
+                if (!optionKeys.has(key) && simplifiedFake.num > 0) {
+                    optionKeys.add(key);
+                    options.push(simplifiedFake);
+                }
+            }
+
+            while (options.length < 4) {
+                const rNum = Math.floor(Math.random() * 9) + 1;
+                const rDen = denominators[Math.floor(Math.random() * denominators.length)];
+                const sFrac = simplifyFraction(rNum, rDen);
+                const key = fracKey(sFrac);
+                if (!optionKeys.has(key)) {
+                    optionKeys.add(key);
+                    options.push(sFrac);
+                }
+            }
+
+            return options.sort(() => Math.random() - 0.5);
+        }
+
+        // Membuat 7 soal hitungan & 3 soal cerita (total 10 soal)
+        function generateQuestions() {
+            const generated = [];
+            const usedQuestions = new Set();
+            const denominators = [2, 3, 4, 5, 6, 8, 10];
+
+            // 1. GENERATE 7 SOAL HITUNGAN BIASA (Nomor 1 - 7)
+            while (generated.length < 7) {
+                const isMultiplication = generated.length % 2 === 0;
+                const op = isMultiplication ? '×' : '÷';
+                const wholeNum = Math.floor(Math.random() * 8) + 2; 
+                const den = denominators[Math.floor(Math.random() * denominators.length)];
+                const num = Math.floor(Math.random() * (den - 1)) + 1;
+                const wholeFirst = Math.random() > 0.5;
+
+                let ansNum, ansDen;
+                let displayParts = [];
+
+                if (isMultiplication) {
+                    ansNum = num * wholeNum;
+                    ansDen = den;
+                    if (wholeFirst) {
+                        displayParts = [
+                            { type: 'whole', val: wholeNum },
+                            { type: 'op', val: '×' },
+                            { type: 'frac', num: num, den: den }
+                        ];
+                    } else {
+                        displayParts = [
+                            { type: 'frac', num: num, den: den },
+                            { type: 'op', val: '×' },
+                            { type: 'whole', val: wholeNum }
+                        ];
+                    }
+                } else {
+                    if (wholeFirst) {
+                        ansNum = wholeNum * den;
+                        ansDen = num;
+                        displayParts = [
+                            { type: 'whole', val: wholeNum },
+                            { type: 'op', val: '÷' },
+                            { type: 'frac', num: num, den: den }
+                        ];
+                    } else {
+                        ansNum = num;
+                        ansDen = den * wholeNum;
+                        displayParts = [
+                            { type: 'frac', num: num, den: den },
+                            { type: 'op', val: '÷' },
+                            { type: 'whole', val: wholeNum }
+                        ];
+                    }
+                }
+
+                const correctAns = simplifyFraction(ansNum, ansDen);
+                const qSignature = `${op}-${wholeNum}-${num}/${den}-${wholeFirst}`;
+
+                if (usedQuestions.has(qSignature)) continue;
+                usedQuestions.add(qSignature);
+
+                const options = generateDistractors(correctAns, num, den, wholeNum, denominators);
+
+                generated.push({
+                    isStory: false,
+                    timeLimit: REGULAR_TIME,
+                    parts: displayParts,
+                    correct: correctAns,
+                    options: options
+                });
+            }
+
+            // 2. GENERATE 3 SOAL CERITA (Nomor 8, 9, dan 10)
+            const storyTemplates = [
+                // Template 1: Perkalian pecahan dengan bilangan asli
+                (w, n, d) => ({
+                    html: `Ibu membeli <b>${w}</b> kantong gula. Setiap kantong berisi ${inlineFracHTML(n, d)} kg gula. Berapa kg total gula Ibu?`,
+                    ansNum: w * n,
+                    ansDen: d
+                }),
+                // Template 2: Pembagian bilangan asli dengan pecahan
+                (w, n, d) => ({
+                    html: `Ayah memiliki <b>${w}</b> liter jus jeruk dan ingin menuangkannya ke gelas berukuran ${inlineFracHTML(n, d)} liter. Berapa banyak gelas yang terisi?`,
+                    ansNum: w * d,
+                    ansDen: n
+                }),
+                // Template 3: Pembagian pecahan dengan bilangan asli
+                (w, n, d) => ({
+                    html: `Budi memiliki pita sepanjang ${inlineFracHTML(n, d)} meter. Pita itu dipotong menjadi <b>${w}</b> bagian sama panjang. Berapa meter panjang setiap potongan?`,
+                    ansNum: n,
+                    ansDen: d * w
+                }),
+                // Template 4: Perkalian bilangan asli dengan pecahan (jarak/waktu)
+                (w, n, d) => ({
+                    html: `Siti berlatih berlari selama <b>${w}</b> hari. Setiap hari ia menempuh jarak ${inlineFracHTML(n, d)} km. Berapa km total jarak lari Siti?`,
+                    ansNum: w * n,
+                    ansDen: d
+                })
+            ];
+
+            // Acak urutan template agar bervariasi tiap kali main
+            storyTemplates.sort(() => Math.random() - 0.5);
+
+            for (let i = 0; i < 3; i++) {
+                const wholeNum = Math.floor(Math.random() * 7) + 2; // 2 sampai 8
+                const storyDens = [2, 3, 4, 5, 6];
+                const den = storyDens[Math.floor(Math.random() * storyDens.length)];
+                const num = Math.floor(Math.random() * (den - 1)) + 1;
+
+                const storyData = storyTemplates[i](wholeNum, num, den);
+                const correctAns = simplifyFraction(storyData.ansNum, storyData.ansDen);
+                const options = generateDistractors(correctAns, num, den, wholeNum, storyDens);
+
+                generated.push({
+                    isStory: true,
+                    timeLimit: STORY_TIME,
+                    storyHTML: storyData.html,
+                    correct: correctAns,
+                    options: options
+                });
+            }
+
+            return generated;
+        }
+
+        // Render HTML soal ke papan soal (menyesuaikan ukuran font untuk soal cerita)
+        function renderQuestionBoard(q) {
+            questionBoardEl.innerHTML = '';
+            if (q.isStory) {
+                questionLabelEl.textContent = '📖 Soal Cerita (Waktu 40 Detik)';
+                questionLabelEl.className = 'text-xs sm:text-sm font-bold text-rose-600 uppercase tracking-wider mb-1';
+                questionBoardEl.className = 'text-base sm:text-xl font-semibold text-slate-800 leading-relaxed text-center block';
+                questionBoardEl.innerHTML = q.storyHTML;
+            } else {
+                questionLabelEl.textContent = 'Berapakah hasilnya?';
+                questionLabelEl.className = 'text-xs sm:text-sm font-bold text-amber-600 uppercase tracking-wider mb-1';
+                questionBoardEl.className = 'text-3xl sm:text-5xl font-bold text-slate-800 flex items-center justify-center gap-2 text-center';
+                q.parts.forEach(part => {
+                    if (part.type === 'whole') {
+                        const span = document.createElement('span');
+                        span.textContent = part.val;
+                        questionBoardEl.appendChild(span);
+                    } else if (part.type === 'op') {
+                        const span = document.createElement('span');
+                        span.className = 'text-rose-500 mx-1';
+                        span.textContent = part.val;
+                        questionBoardEl.appendChild(span);
+                    } else if (part.type === 'frac') {
+                        const fracDiv = document.createElement('div');
+                        fracDiv.className = 'fraction text-sky-600';
+                        fracDiv.innerHTML = `
+                            <span class="top">${part.num}</span>
+                            <span class="bottom">${part.den}</span>
+                        `;
+                        questionBoardEl.appendChild(fracDiv);
+                    }
+                });
+            }
+        }
+
+        /**
+         * ============================================================================
+         * MANAJEMEN KANVAS & BALON JATUH
+         * ============================================================================
+         */
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Membuat objek balon untuk soal saat ini
+        function spawnBalloonsForQuestion(q) {
+            balloons = [];
+            const count = q.options.length; // 4 balon
+            
+            // Tentukan area jatuh balon (sebelah kanan pada layar desktop/tablet, atau area bawah pada layar HP sempit)
+            const isSplitHorizontal = canvas.width >= 768;
+            const zoneStartX = isSplitHorizontal ? canvas.width * 0.39 : 0;
+            const zoneEndX = canvas.width;
+            const zoneWidth = zoneEndX - zoneStartX;
+
+            const paddingX = Math.min(50, zoneWidth * 0.08);
+            const usableWidth = zoneWidth - paddingX * 2;
+            const laneWidth = usableWidth / count;
+
+            // Radius responsif berdasarkan lebar zona balon kanan
+            const baseRadius = Math.max(34, Math.min(52, laneWidth * 0.42));
+
+            // Acak warna balon
+            const shuffledColors = [...BALLOON_COLORS].sort(() => Math.random() - 0.5);
+
+            // Hitung kecepatan jatuh sesuai batas waktu soal (20 detik atau 40 detik)
+            const questionTime = q.timeLimit || REGULAR_TIME;
+            const startY = -baseRadius * 1.5;
+            const targetY = canvas.height - 60;
+            const totalDistance = targetY - startY;
+            const baseSpeed = totalDistance / (questionTime * 0.92);
+
+            q.options.forEach((opt, idx) => {
+                const laneCenter = zoneStartX + paddingX + laneWidth * idx + laneWidth / 2;
+                const jitterX = (Math.random() - 0.5) * (laneWidth * 0.22);
+                const color = shuffledColors[idx % shuffledColors.length];
+                const isCorrect = (opt.num === q.correct.num && opt.den === q.correct.den);
+
+                balloons.push({
+                    x: laneCenter + jitterX,
+                    minX: zoneStartX + baseRadius + 8,
+                    maxX: zoneEndX - baseRadius - 8,
+                    y: startY - (idx * 35), // Sedikit bertingkat saat muncul
+                    radius: baseRadius,
+                    speed: baseSpeed * (0.94 + Math.random() * 0.12),
+                    wobbleOffset: Math.random() * Math.PI * 2,
+                    wobbleSpeed: 1.5 + Math.random(),
+                    option: opt,
+                    isCorrect: isCorrect,
+                    color: color,
+                    popped: false,
+                    scale: 1
+                });
+            });
+        }
+
+        // Membuat partikel ledakan saat balon pecah
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 22; i++) {
+                const angle = (Math.PI * 2 * i) / 22 + (Math.random() - 0.5) * 0.3;
+                const speed = 120 + Math.random() * 240;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 4 + Math.random() * 6,
+                    color: i % 2 === 0 ? color.main : color.light,
+                    alpha: 1,
+                    decay: 1.5 + Math.random()
+                });
+            }
+        }
+
+        /**
+         * ============================================================================
+         * RENDERING KANVAS (BALON, TALI, ANGKA PECAHAN, PARTIKEL)
+         * ============================================================================
+         */
+        function drawBalloon(b) {
+            if (b.popped) return;
+
+            ctx.save();
+            ctx.translate(b.x, b.y);
+            ctx.scale(b.scale, b.scale);
+
+            const r = b.radius;
+
+            // 1. Tali Balon Bergelombang
+            ctx.beginPath();
+            ctx.moveTo(0, r * 1.15);
+            ctx.quadraticCurveTo(Math.sin(b.wobbleOffset * 2) * 10, r * 1.5, 0, r * 1.9);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // 2. Segitiga Ikatan Bawah Balon
+            ctx.beginPath();
+            ctx.moveTo(-6, r * 1.18);
+            ctx.lineTo(6, r * 1.18);
+            ctx.lineTo(0, r * 1.05);
+            ctx.closePath();
+            ctx.fillStyle = b.color.dark;
+            ctx.fill();
+
+            // 3. Badan Utama Balon (Oval sedikit memanjang)
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 0.92, r * 1.12, 0, 0, Math.PI * 2);
+            const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r * 1.2);
+            grad.addColorStop(0, b.color.light);
+            grad.addColorStop(0.45, b.color.main);
+            grad.addColorStop(1, b.color.dark);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Garis tepi halus
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.stroke();
+
+            // 4. Kilau Cahaya pada Balon
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.35, -r * 0.42, r * 0.16, r * 0.32, -Math.PI / 5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.fill();
+
+            // 5. Teks Jawaban di Tengah Balon
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
+
+            if (b.option.den === 1) {
+                // Bilangan bulat
+                ctx.font = `bold ${Math.round(r * 0.65)}px 'Fredoka', sans-serif`;
+                ctx.fillText(b.option.num.toString(), 0, 2);
+            } else {
+                // Pecahan (Pembilang di atas garis, Penyebut di bawah garis)
+                const fontSize = Math.round(r * 0.46);
+                ctx.font = `bold ${fontSize}px 'Fredoka', sans-serif`;
+
+                // Pembilang
+                ctx.fillText(b.option.num.toString(), 0, -fontSize * 0.62);
+
+                // Garis Pecahan
+                const lineWidth = Math.max(22, r * 0.65);
+                ctx.beginPath();
+                ctx.moveTo(-lineWidth / 2, 0);
+                ctx.lineTo(lineWidth / 2, 0);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Penyebut
+                ctx.fillText(b.option.den.toString(), 0, fontSize * 0.68);
+            }
+
+            ctx.restore();
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        /**
+         * ============================================================================
+         * ALUR PERMAINAN & UPDATE LOOP
+         * ============================================================================
+         */
+        function startGame() {
+            initAudio();
+            score = 0;
+            correctCount = 0;
+            currentQuestionIndex = 0;
+            questions = generateQuestions();
+
+            scoreDisplayEl.textContent = score;
+            startScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            gameUI.classList.remove('hidden');
+
+            loadQuestion(0);
+        }
+
+        function loadQuestion(index) {
+            if (index >= TOTAL_QUESTIONS) {
+                endGame();
+                return;
+            }
+
+            gameState = 'PLAYING';
+            currentQuestionIndex = index;
+            const currentQ = questions[index];
+            currentMaxTime = currentQ.timeLimit || REGULAR_TIME;
+            timeLeft = currentMaxTime;
+
+            questionNumEl.textContent = index + 1;
+            renderQuestionBoard(currentQ);
+            spawnBalloonsForQuestion(currentQ);
+            updateTimerUI();
+        }
+
+        function updateTimerUI() {
+            const pct = Math.max(0, (timeLeft / currentMaxTime) * 100);
+            timerBarEl.style.width = `${pct}%`;
+            timerTextEl.textContent = Math.ceil(timeLeft);
+
+            // Ubah warna bar timer jika waktu menipis
+            if (timeLeft <= 5) {
+                timerBarEl.className = 'h-full bg-rose-500 transition-all duration-100 ease-linear';
+            } else if (timeLeft <= currentMaxTime * 0.5) {
+                timerBarEl.className = 'h-full bg-amber-400 transition-all duration-100 ease-linear';
+            } else {
+                timerBarEl.className = 'h-full bg-emerald-500 transition-all duration-100 ease-linear';
+            }
+        }
+
+        function showFeedback(text, bgClass) {
+            feedbackContent.textContent = text;
+            feedbackContent.className = `px-8 py-4 rounded-3xl font-bold text-2xl sm:text-4xl text-white shadow-2xl border-4 border-white text-center pop-in ${bgClass}`;
+            feedbackBanner.classList.remove('hidden');
+
+            setTimeout(() => {
+                feedbackBanner.classList.add('hidden');
+            }, 1100);
+        }
+
+        function handleQuestionResult(isCorrect, reasonText) {
+            if (gameState !== 'PLAYING') return;
+            gameState = 'TRANSITION';
+
+            if (isCorrect) {
+                playSound('correct');
+                correctCount++;
+                // Skor dasar 100 + bonus waktu tersisa
+                const timeBonus = Math.round(timeLeft * 2);
+                const points = 100 + timeBonus;
+                score += points;
+                scoreDisplayEl.textContent = score;
+                showFeedback(`BENAR! +${points} 🎉`, 'bg-emerald-500');
+            } else {
+                playSound('wrong');
+                const currentQ = questions[currentQuestionIndex];
+                const ansStr = fracKey(currentQ.correct);
+                showFeedback(`${reasonText} (Jawaban: ${ansStr})`, 'bg-rose-500');
+            }
+
+            // Lanjut ke soal berikutnya setelah jeda singkat
+            setTimeout(() => {
+                loadQuestion(currentQuestionIndex + 1);
+            }, 1350);
+        }
+
+        function endGame() {
+            gameState = 'END';
+            balloons = [];
+            playSound('win');
+
+            gameUI.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalCorrect').textContent = `${correctCount} / ${TOTAL_QUESTIONS}`;
+
+            const endEmoji = document.getElementById('endEmoji');
+            const endTitle = document.getElementById('endTitle');
+            const endSubtitle = document.getElementById('endSubtitle');
+
+            if (correctCount >= 8) {
+                endEmoji.textContent = '🏆';
+                endTitle.textContent = 'Juara Matematika!';
+                endSubtitle.textContent = 'Hebat sekali! Kamu sangat jago menghitung pecahan!';
+            } else if (correctCount >= 5) {
+                endEmoji.textContent = '🌟';
+                endTitle.textContent = 'Bagus Sekali!';
+                endSubtitle.textContent = 'Terus berlatih agar nilaimu semakin sempurna!';
+            } else {
+                endEmoji.textContent = '💪';
+                endTitle.textContent = 'Tetap Semangat!';
+                endSubtitle.textContent = 'Ayo coba lagi, kamu pasti bisa memecahkan lebih banyak balon!';
+            }
+        }
+
+        // Loop Animasi Utama (60 FPS)
+        function gameLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
+            lastTimestamp = timestamp;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Update & Render Partikel
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vy += 320 * dt; // Gravitasi partikel
+                p.alpha -= p.decay * dt;
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+            drawParticles();
+
+            // Update & Render Balon saat bermain
+            if (gameState === 'PLAYING' || gameState === 'TRANSITION') {
+                if (gameState === 'PLAYING') {
+                    timeLeft -= dt;
+                    if (timeLeft <= 0) {
+                        timeLeft = 0;
+                        updateTimerUI();
+                        handleQuestionResult(false, 'Waktu Habis! ⏰');
+                    } else {
+                        updateTimerUI();
+                    }
+                }
+
+                let activeBalloonsCount = 0;
+                balloons.forEach(b => {
+                    if (!b.popped) {
+                        activeBalloonsCount++;
+                        b.y += b.speed * dt;
+                        b.wobbleOffset += b.wobbleSpeed * dt;
+                        b.x += Math.sin(b.wobbleOffset) * 28 * dt;
+                        // Jaga agar balon tetap berada di area kanan dan tidak menabrak panel soal kiri
+                        if (b.minX !== undefined && b.maxX !== undefined) {
+                            b.x = Math.max(b.minX, Math.min(b.maxX, b.x));
+                        }
+
+                        // Jika balon menyentuh batas bawah rumput
+                        if (b.y - b.radius > canvas.height - 45) {
+                            b.popped = true;
+                            if (b.isCorrect && gameState === 'PLAYING') {
+                                handleQuestionResult(false, 'Balon Jawaban Jatuh! 🎈');
+                            }
+                        }
+                        drawBalloon(b);
+                    }
+                });
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        /**
+         * ============================================================================
+         * INTERAKSI KLIK / SENTUH BALON
+         * ============================================================================
+         */
+        function handlePointerDown(clientX, clientY) {
+            if (gameState !== 'PLAYING') return;
+
+            const rect = canvas.getBoundingClientRect();
+            const clickX = clientX - rect.left;
+            const clickY = clientY - rect.top;
+
+            // Cek balon dari yang paling depan (atas tumpukan)
+            for (let i = balloons.length - 1; i >= 0; i--) {
+                const b = balloons[i];
+                if (b.popped) continue;
+
+                // Deteksi jarak klik terhadap pusat oval balon (sedikit diperbesar agar ramah jari anak)
+                const dx = (clickX - b.x) / (b.radius * 1.05);
+                const dy = (clickY - b.y) / (b.radius * 1.22);
+
+                if (dx * dx + dy * dy <= 1) {
+                    b.popped = true;
+                    playSound('pop');
+                    createExplosion(b.x, b.y, b.color);
+
+                    if (b.isCorrect) {
+                        handleQuestionResult(true);
+                    } else {
+                        // Efek getar pada papan soal jika salah memilih balon
+                        questionBoardEl.parentElement.classList.remove('shake');
+                        void questionBoardEl.parentElement.offsetWidth;
+                        questionBoardEl.parentElement.classList.add('shake');
+                        handleQuestionResult(false, 'Kurang Tepat! 😅');
+                    }
+                    break;
+                }
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            handlePointerDown(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: false });
+
+        // Kontrol Tombol UI
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        soundToggle.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            soundToggle.textContent = soundEnabled ? '🔊' : '🔇';
+        });
+
+        // Mulai loop animasi
+        window.onload = function () {
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
